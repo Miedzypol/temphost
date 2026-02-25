@@ -131,23 +131,27 @@ def download():
     if not downloadFileID or not downloadFileToken:
         saveToLogDB('DOWNLOAD','TRYING TO DOWNLOAD A FILE','ERROR: MISSING FIELDS')
         return 'downloadFileID or downloadFileToken is blank'
-    conn = sqlite3.connect(BAN_DB, check_same_thread=False)
+    conn = sqlite3.connect(FILE_DB, check_same_thread=False)
     cursor = conn.cursor()
     
-    cursor.execute("SELECT accessToken, fileName FROM files WHERE id = ?", (downloadFileID,))
+    cursor.execute("SELECT accessToken, fileName FROM files WHERE id = ?", (downloadFileID,)) # wypierdala none, napraw to http://127.0.0.1:3138/download?id=09978280&token=RPgE41r9wtTj
     downloadDBSearchResult = cursor.fetchone()
     conn.close()
+    print(downloadDBSearchResult)
     if downloadDBSearchResult:
-        
-        return static_file(
-            downloadDBSearchResult[1],
-            root="./",
-            download=f'{ROOTDIR}{dirChar}uploadedFiles{dirChar}{downloadDBSearchResult[1]}'
-        )
+        if downloadFileToken==downloadDBSearchResult[0]:
+            saveToLogDB('DOWNLOAD','TOKEN MATCHES DB RECORD CONDITION', f'SUCCESS {downloadDBSearchResult[1]}')
+            return static_file(
+                downloadDBSearchResult[1],
+                root=f'{ROOTDIR}{dirChar}uploadedFiles{dirChar}',
+                download={downloadDBSearchResult[1]}
+            )
+        else:
+            saveToLogDB('DOWNLOAD','TOKEN MATCHES DB RECORD CONDITION', f'FAILURE {downloadDBSearchResult[1]}')
+            return 'TOKEN DOES NOT MATCH DB RECORD'
     else:
         saveToLogDB('DOWNLOAD','TRYING TO DOWNLOAD A FILE', 'ERROR: FILE NOT FOUND')
         return 'FILE NOT FOUND ERROR'
-
 
 @route('/upload', method='POST')
 def upload():
@@ -185,7 +189,7 @@ def upload():
         conn.close()
 
     saveToLogDB('INFO', f'FILE UPLOAD IN SIZE {file_length}B', 'SUCCESS')
-    return f"File ID: {dbFileID} | File Token (PASSWORD FOR FILE): {dbFileToken}"
+    return f'''File ID: {dbFileID} | File Token (PASSWORD FOR FILE): {dbFileToken}''' #for devs: localhost:3138/download?id={dbFileID}&token={dbFileToken}
 
 run(host='localhost', port=3138)
 
