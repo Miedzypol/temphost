@@ -4,15 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>temphost</title>
-    <style>
-        body {
-            place-items: center;
-            font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
-        }
-    </style>
 </head>
 <body>
-    <div class="main">
+
     <h1>temphost</h1>
     <p>Upload your files for a day. Important - loosing token means loosing the file.
         The file stays about a day on our servers. Then, it's deleted.
@@ -22,7 +16,6 @@
         <button type="submit">Upload</button>
     </form>
     <div id="response"></div>
-    </div>
 
     <script>
         document.getElementById('uploadForm').addEventListener('submit', function(e) {
