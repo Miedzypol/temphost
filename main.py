@@ -3,6 +3,9 @@ import sqlite3, threading
 import os, time, random, platform, string
 import subprocess
 
+# for future: http://localhost:3138/download?id=12987789&token=jkLOsmJM4jfN mam nadzieje że to sie nie spierdoli
+# em, nie zjebało się :D
+
 # DEFAULT VARIABLES
 dirChar = '/'
 logServerInfo = True
@@ -133,8 +136,7 @@ def download():
         return 'downloadFileID or downloadFileToken is blank'
     conn = sqlite3.connect(FILE_DB, check_same_thread=False)
     cursor = conn.cursor()
-    
-    cursor.execute("SELECT accessToken, fileName FROM files WHERE id = ?", (downloadFileID,)) # wypierdala none, napraw to http://127.0.0.1:3138/download?id=09978280&token=RPgE41r9wtTj
+    cursor.execute("SELECT accessToken, fileName FROM files WHERE fileID = ?", (int(downloadFileID),))
     downloadDBSearchResult = cursor.fetchone()
     conn.close()
     print(downloadDBSearchResult)
@@ -144,7 +146,7 @@ def download():
             return static_file(
                 downloadDBSearchResult[1],
                 root=f'{ROOTDIR}{dirChar}uploadedFiles{dirChar}',
-                download={downloadDBSearchResult[1]}
+                download=downloadDBSearchResult[1]
             )
         else:
             saveToLogDB('DOWNLOAD','TOKEN MATCHES DB RECORD CONDITION', f'FAILURE {downloadDBSearchResult[1]}')
@@ -153,7 +155,7 @@ def download():
         saveToLogDB('DOWNLOAD','TRYING TO DOWNLOAD A FILE', 'ERROR: FILE NOT FOUND')
         return 'FILE NOT FOUND ERROR'
 
-@route('/upload', method='POST')
+@route('/upload', method='POST') #napraw toooooooooooooooooooooooooooooooooooooooooo T-T
 def upload():
     file = request.files.get('file')
     if not file:
@@ -192,6 +194,3 @@ def upload():
     return f'''File ID: {dbFileID} | File Token (PASSWORD FOR FILE): {dbFileToken}''' #for devs: localhost:3138/download?id={dbFileID}&token={dbFileToken}
 
 run(host='localhost', port=3138)
-
-while True:
-    userInput = input('>>')

@@ -1,0 +1,9 @@
+# Ignore uploaded files directory
+uploadedFiles/
+
+# Ignore database files
+/db/banned.db
+/db/fileStorage.db
+/db/fileStorage.db-shm
+/db/fileStorage.db-wal
+/db/logs.db
