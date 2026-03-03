@@ -2,20 +2,156 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=0.6">
     <title>temphost</title>
+    <style>
+    * {
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow: hidden;
+    }
+    
+    body {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      font-size: large;
+      background-image: url('https://images.pexels.com/photos/10791141/pexels-photo-10791141.jpeg?_gl=1*oinroo*_ga*MTA0MDExOTI1NS4xNzcyNTY5MjI4*_ga_8JE65Q40S6*czE3NzI1NjkyMjgkbzEkZzEkdDE3NzI1NjkyNTEkajM3JGwwJGgw');
+      background-size: cover;
+      background-position: bottom;
+      background-attachment: fixed;
+      color: whitesmoke;
+      margin: 5px;
+    }
+    .navbar, .side, .main, footer, button, input[type="text"], input[type="file"] {
+      backdrop-filter: blur(12px) saturate(200%);
+      -webkit-backdrop-filter: blur(12px) saturate(200%);
+      background-color: rgba(17, 25, 40, 0.41);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.045);
+      background-clip: padding-box;
+    }
+    button, input[type="text"], input[type="file"] {
+      border: 1px solid rgba(89, 200, 255, 0.125);
+      color: whitesmoke;
+    }
+    .navbar {
+      display: flex;
+    }
+    .navbar a {
+      padding: 14px 20px;
+      text-decoration: none;
+      text-align: center;
+      color: whitesmoke;
+    }
+    .navbar a:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+    .container {  
+      display: flex;
+      flex-wrap: wrap;
+      width: 100%;
+      flex: 1;
+      overflow: hidden;
+    }
+    .side {
+      flex: 30%;
+      padding: 20px;
+    }
+    .main {
+      flex: 70%;
+      padding: 20px;
+    }
+    footer {
+      padding: 1px;
+      text-align: center;
+      height: 9%;
+    }
+    
+    /* Responsive layout - when the screen is less than 700px wide, make the two columns stack on top of each other instead of next to each other */
+    @media screen and (max-width: 700px) {
+      .container, .navbar {   
+        flex-direction: column;
+      }
+    }
+    button {
+        font-size: large;
+        padding: 10px 20px;
+        margin-top: 10px;
+        width: 100%;
+        background-color: rgba(171, 227, 255, 0.125);
+        cursor: pointer;
+    }
+    button:hover {
+        background-color: rgba(171, 227, 255, 0.25);
+        transition: 150ms;
+    }
+    ::-webkit-scrollbar { display: none; }
+    html { scrollbar-width: none; }
+    input[type="text"], input[type="file"] {
+        font-size: large;
+        padding: 10px;
+        margin-top: 10px;
+        width: 100%;
+        border: 2px;
+        transition: 150ms;
+    }
+    input[type="text"]:hover {
+        color: rgba(255, 255, 255, 0.71);
+        background-color: rgba(10, 15, 24, 0.41);
+    }
+    p.navtitlee {
+        margin: 0;
+        padding: 14px 20px;
+    }
+    </style>
 </head>
 <body>
 
+<div class="navbar">
+    <p class="navtitlee">NanoCloud.pl</p>
+  <a href="#">Home</a>
+  <a href="#">Projects</a>
+  <a href="#">Contact</a>
+  <a href="#">Github</a>
+</div>
+
+<div class="container">
+  <div class="side">
     <h1>temphost</h1>
     <p>Upload your files for a day. Important - loosing token means loosing the file.
         The file stays about a day on our servers. Then, it's deleted.
     </p>
+  </div>
+  <div class="main">
+    <h2>Upload</h2>
     <form id="uploadForm" enctype="multipart/form-data">
         <input type="file" id="fileInput" name="file" required>
         <button type="submit">Upload</button>
     </form>
     <div id="response"></div>
+
+    <h2>Download</h2>
+    <div id="downloadSection">
+        <label for="downloadId">ID:</label>
+        <input type="text" id="downloadId">
+        <label for="downloadToken">Token:</label>
+        <input type="text" id="downloadToken">
+        <button id="downloadBtn">Download</button>
+    </div>
+    <div id="downloadResponse"></div>
+  </div>
+</div>
+
+<!-- Footer -->
+<footer>
+  <p>TempHost belongs to NanoCloud Initiative.</p>
+</footer>
 
     <script>
         document.getElementById('uploadForm').addEventListener('submit', function(e) {
@@ -24,7 +160,7 @@
             const file = fileInput.files[0];
             const maxSize = 150 * 1024 * 1024;
             if (file.size > maxSize) {
-                document.getElementById('response').innerText = 'File size exceeds 500MB.';
+                document.getElementById('response').innerText = 'File size exceeds 150MB.';
                 return;
             }
             const formData = new FormData();
@@ -33,11 +169,44 @@
             fetch('/upload', {method: 'POST',body: formData,}) // fuckass stupid copilot kys 
             .then(response => response.text())
             .then(data => {
-                document.getElementById('response').innerText = 'Server response: ' + data;
+                document.getElementById('response').innerText = data;
             })
             .catch(error => {
                 document.getElementById('response').innerText = 'Error: ' + error;
             });
+        });
+
+        // download handler
+        document.getElementById('downloadBtn').addEventListener('click', function() {
+            const id = document.getElementById('downloadId').value;
+            const token = document.getElementById('downloadToken').value;
+            if (!id || !token) {
+                document.getElementById('downloadResponse').innerText = 'Please provide both ID and token.';
+                return;
+            }
+            const url = `http://localhost:3138/download?id=${encodeURIComponent(id)}&token=${encodeURIComponent(token)}`;
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.blob();
+                })
+                .then(blob => {
+                    // create a temporary link to download the file
+                    const a = document.createElement('a');
+                    const objectUrl = URL.createObjectURL(blob);
+                    a.href = objectUrl;
+                    a.download = '';
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    URL.revokeObjectURL(objectUrl);
+                    document.getElementById('downloadResponse').innerText = 'Download started.';
+                })
+                .catch(error => {
+                    document.getElementById('downloadResponse').innerText = 'Error: ' + error;
+                });
         });
     </script>
 </body>
