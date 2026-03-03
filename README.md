@@ -1,3 +1,4 @@
+<img width="1000" height="350" alt="temphost" src="https://github.com/user-attachments/assets/8d44c84e-2102-4dd3-9793-d731e6381ca3" />
 # TempHost
 
 TempHost - My **FIRST** "Good" web service. It functions on `port 3138` and it allows the user to store his files for 24 hours on the server's machine. After that it is deleted.
@@ -5,7 +6,6 @@ TempHost - My **FIRST** "Good" web service. It functions on `port 3138` and it a
 ### Supported Operating Systems:
 - Windows 10/11
 - Linux Debian/Ubuntu based
-- 
 - **!! DARWIN BASED SYSTEMS **(such as MacOS and other Apple's products)** ARE NOT SUPPORTED AND WOULDN'T BE !!**
 
 ## Important information
@@ -56,8 +56,7 @@ run:
 ```bash
 python3 installTH.py
 ```
-### Run raw code (downloaded from branches
-)
+### Run raw code (downloaded from branches)
 I recommend downloadidng it from MAIN branch
 
 You need to unpack it, and inside Terminal go to TempHost's directory and run:
