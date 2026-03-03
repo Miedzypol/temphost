@@ -1,5 +1,6 @@
 <img width="1000" height="350" alt="temphost" src="https://github.com/user-attachments/assets/8d44c84e-2102-4dd3-9793-d731e6381ca3" />
-# TempHost
+
+## TempHost
 
 TempHost - My **FIRST** "Good" web service. It functions on `port 3138` and it allows the user to store his files for 24 hours on the server's machine. After that it is deleted.
 
