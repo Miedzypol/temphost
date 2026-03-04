@@ -64,5 +64,12 @@ You need to unpack it, and inside Terminal go to TempHost's directory and run:
 ```bash
 python3 main.py
 ```
+## Code Documentation:
+Currently a placeholder.
+
+## Other:
+- apiyllo (or aπyllo) is me
+- This repository uses GNU GPL 3.0 license
+- This repository belongs to NanoCloud Initiative
 
 # Thanks!
