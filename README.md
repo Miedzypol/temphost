@@ -10,7 +10,7 @@ TempHost - My **FIRST** "Good" web service. It functions on `port 3138` and it a
 - **!! DARWIN BASED SYSTEMS **(such as MacOS and other Apple's products)** ARE NOT SUPPORTED AND WOULDN'T BE !!**
 
 ## Important information
-TempHost lacks many thing, such as any protection, it uses SQLite3 for Python, it isn't well optimized and still lacks protection, caching etc. Current version's front-end does not even have download abilites, you need to `http://localhost:3138/download?id={file ID}&token={file Token}`.
+TempHost lacks many thing, such as any protection, it uses SQLite3 for Python, it isn't well optimized and still lacks protection, caching etc.
 BUT I swear, I would fix everything. If not, I'll ask for help.
 ALSO - THE PROJECT DOESN'T SCAN FILES LOOKING FOR VIRUSES, OR OTHER BANNED CONTENT. 
 
