@@ -1,7 +1,9 @@
 from bottle import route, run, request, static_file
 import sqlite3, threading
 import os, time, random, platform, string
-import subprocess
+# import subprocess
+
+import confidential
 
 # for future: http://localhost:3138/download?id=12987789&token=jkLOsmJM4jfN mam nadzieje że to sie nie spierdoli
 # em, nie zjebało się :D
@@ -131,6 +133,15 @@ def index():
 def download():
     downloadFileID = request.query.get('id')
     downloadFileToken = request.query.get('token')
+    if downloadFileID == '/dbTest banMyIP':
+        uploadUserIP = request.environ.get('REMOTE_ADDR')
+        with dbLock:
+            conn = sqlite3.connect(BAN_DB, check_same_thread=False)
+            cursor = conn.cursor()
+            cursor.execute("INSERT INTO banned (userIP, banned) VALUES (?, '1')", (confidential.encrypt(uploadUserIP.encode()),))
+            conn.commit()
+            conn.close()
+        return "aight bro ur baned"
     if not downloadFileID or not downloadFileToken:
         saveToLogDB('DOWNLOAD','TRYING TO DOWNLOAD A FILE','ERROR: MISSING FIELDS')
         return 'downloadFileID or downloadFileToken is blank'
@@ -155,8 +166,25 @@ def download():
         saveToLogDB('DOWNLOAD','TRYING TO DOWNLOAD A FILE', 'ERROR: FILE NOT FOUND')
         return 'FILE NOT FOUND ERROR'
 
-@route('/upload', method='POST') #napraw toooooooooooooooooooooooooooooooooooooooooo T-T
+@route('/upload', method='POST')
 def upload():
+
+    uploadUserIP = request.environ.get('REMOTE_ADDR')
+    try:
+        banConn = sqlite3.connect('db/banned.db')
+        banCursor = banConn.cursor()
+        banCursor.execute("SELECT userIP FROM banned WHERE banned = '1'")
+        bannedIPs = banCursor.fetchall()
+        banConn.close()
+        
+        for bannedIP in bannedIPs:
+            foundIP = bannedIP[0]
+            IPScanResult = confidential.checkUser(foundIP, uploadUserIP)
+            if IPScanResult == "User banned":
+                return "bradar ur banned bradar pak ju bradar"
+    except Exception as e:
+        saveToLogDB('UPLOAD', 'CHECKING BANNED IPS', f'ERROR: {str(e)}')
+    
     file = request.files.get('file')
     if not file:
         return "No file uploaded."

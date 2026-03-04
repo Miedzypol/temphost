@@ -67,6 +67,20 @@ python3 main.py
 ## Code Documentation:
 Currently a placeholder.
 
+## Security
+### Security of banned user's IPv4 adresses
+Not like what, but this project stores user's IPv4 Adresses to check if they are banned from the website.
+Every security measure related to user's IPv4 Adresses is being stored in confidential.py
+There, on line 18, you have a obscured variable. It is a key to decrypt user's IP adresses.
+I recommend you to generate new key, because if you wouldn't, user's IP could be decrypted and stolen.
+[not sponsored] You can generate new keys on www.random.org/strings/ . I recommend that website.
+You can also use built-in randomStr() function, but it isn't safest thing.
+
+User IP is encrypted firstly with bcrypt hashing, then with cryptography.fernet library.
+You can decrypt cryptography.fernet, but you cant 'unhash' the IP.
+
+### Security of your files
+There isn't a great security related to it, you can easily command inject/sql inject into it. Im working on it.
 ## Other:
 - apiyllo (or aπyllo) is me
 - This repository uses GNU GPL 3.0 license
