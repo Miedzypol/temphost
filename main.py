@@ -1,20 +1,89 @@
 from bottle import route, run, request, static_file
 import sqlite3, threading
 import os, time, random, platform, string
-# import subprocess
-
 import confidential
 
-# for future: http://localhost:3138/download?id=12987789&token=jkLOsmJM4jfN mam nadzieje że to sie nie spierdoli
-# em, nie zjebało się :D
+appVersion = "1.0.4.1"
 
-# DEFAULT VARIABLES
+# New things in 1.0.4.1
+# that .1 ending cuz there are a lot of things unfinished
+# - Unfinished Server Console
+# - User Banning
+# - Finally you can do other things when server is running
+# - Cleaning database every 480 seconds. Deleted would be missing or expired files and it's entries.
+
+# New features that would be in 1.1:
+# - Finished Server console
+# - Scanning if user was banned
+# - More security measures & overall better database security
+# - Cleaned and optimized code
+# - Server installator for Linux and Windows.
+
+# Planned features in 1.2:
+# - Scanning user's files looking for illegal images, videos and other data
+# - Better and cleaner Front-End
+# - Multiple QoL Features, like automatic key generator for confidential.py
+
+ROOTDIR = os.path.join(os.path.dirname(os.path.abspath(__file__)))
+FILE_DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), f'db{dirChar}fileStorage.db')
+BAN_DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), f'db{dirChar}banned.db')
+LOG_DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), f'db{dirChar}logs.db')
+
+# Here are some variables you can change. Alternatively use 'config {command}' in server console. <<< DOESNT WORK CURRENTLY
 dirChar = '/'
 logServerInfo = True
-uploadDirectory = 'C:\\Users\\olekt\\Desktop\\temphost\\uploadedFiles\\'
+uploadDirectory = f'{ROOTDIR}{dirChar}uploadedFiles'
 
-# Global database lock
+
+
+
+
+
 dbLock = threading.Lock()
+
+class DatabaseCleanup:
+    def __init__(self, dbPath, uploadFolder):
+        self.dbPath = dbPath
+        self.uploadFolder = uploadFolder
+
+    def checkAndCleanDatabase(self):
+        try:
+            conn = sqlite3.connect(
+                self.dbPath,
+                timeout=10,
+                isolation_level=None,
+                check_same_thread=False
+            )
+            conn.execute("PRAGMA journal_mode=WAL;")
+            cursor = conn.cursor()
+            cursor.execute("SELECT fileID, fileName, expireTime FROM files")
+            entries = cursor.fetchall()
+
+            for fileID, fileName, expireTime in entries:
+                filePath = os.path.join(self.uploadFolder, fileName)
+                if not os.path.exists(filePath):
+                    print(f"File '{fileName}' not found.")
+                    cursor.execute("DELETE FROM files WHERE fileID=?", (fileID,))
+                    continue
+
+                if expireTime and float(expireTime) < time.time():
+                    print(f"File '{fileName}' has expired.")
+                    try:
+                        os.remove(filePath)
+                    except OSError as e:
+                        print(f"Error deleting file '{fileName}': {e}")
+                    cursor.execute("DELETE FROM files WHERE fileID=?", (fileID,))
+            conn.commit()
+            conn.close()
+            print(f"[{time.ctime()}] Database cleanup completed.")
+
+        except sqlite3.Error as e:
+            print(f"SQLite Kaput: {e}")
+
+    def runPeriodically(self, interval):
+        self.checkAndCleanDatabase()
+        threading.Timer(interval, self.runPeriodically, [interval]).start()
+
 
 def ffo(fileName, ffoType):  # fast file operation
     file = open(f'{ROOTDIR}{dirChar}{fileName}', ffoType)
@@ -73,10 +142,7 @@ else:
           !!! THIS WARNING WOULD BE LOGGED !!!''')
     saveToLogDB('STARTUP', 'SERVER SYSTEM WARNING', 'SYSTEM NOT SUPPORTED')
 
-ROOTDIR = os.path.join(os.path.dirname(os.path.abspath(__file__)))
-FILE_DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), f'db{dirChar}fileStorage.db')
-BAN_DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), f'db{dirChar}banned.db')
-LOG_DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), f'db{dirChar}logs.db')
+
 with dbLock:
     conn = sqlite3.connect(FILE_DB, check_same_thread=False, timeout=10)
     conn.execute('PRAGMA journal_mode=WAL;')
@@ -114,16 +180,6 @@ with dbLock:
     conn.close()
 
 serverStartup()
-
-
-'''try:
-    subprocess.run([f'python3 {ROOTDIR}{dirChar}fileScanner.py', '-l']) 
-except FileNotFoundError:
-    saveToLogDB('ERROR', 'ERROR RUNNING fileScanner.py', 'FileNotFoundError')
-    print(f'python3 {ROOTDIR}{dirChar}fileScanner.py')
-except:
-    saveToLogDB('ERROR', 'ERROR RUNNING fileScanner.py', 'OTHER ERROR')
-    print('error')'''
 
 @route("/")
 def index():
@@ -219,6 +275,41 @@ def upload():
         conn.close()
 
     saveToLogDB('INFO', f'FILE UPLOAD IN SIZE {file_length}B', 'SUCCESS')
-    return f'''File ID: {dbFileID} | File Token (PASSWORD FOR FILE): {dbFileToken}''' #for devs: localhost:3138/download?id={dbFileID}&token={dbFileToken}
+    return f'File ID: {dbFileID} | File Token (PASSWORD FOR FILE): {dbFileToken}'
 
-run(host='localhost', port=3138)
+isServerRunning = True
+
+def runServer():
+    try:
+        run(host='0.0.0.0', port=3138, quiet=True)
+    except KeyboardInterrupt:
+        pass
+
+uploadFolder = os.path.join(ROOTDIR, "uploadedFiles")
+os.makedirs(uploadFolder, exist_ok=True)
+cleanup = DatabaseCleanup(FILE_DB, uploadFolder)
+cleanup.runPeriodically(3)
+
+serverThread = threading.Thread(target=runServer, daemon=True)
+serverThread.start()
+print("Server started on http://localhost:3138")
+print(f'NanoCloud Initiative | TempHost v{appVersion} is running. Use "help" for command\'s list\n')
+try:
+    while isServerRunning:
+        try:
+            command = input(">> ").strip().lower()
+            if command == "help":
+                print(f'''Available commands (warning - most of them don't work currently):
+                      server stop - stops the server
+                      config allowLogging [true/false] - turn on server's logging
+                      config logDetailedInfo [true/false] - allow logging more detailed info
+                      user ban [IP] - banns user's IP adress
+                      ''')
+            pass
+        except KeyboardInterrupt:
+            print("\nByeeeee!")
+            isServerRunning = False
+            exit()
+except Exception as e:
+    print(f"Error in command loop: {e}")
+    isServerRunning = False

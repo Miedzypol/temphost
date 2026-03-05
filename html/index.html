@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=0.6">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="description" content="temphost - store your files for 24 hours">
     <meta name="theme-color" content="#111928">
     <meta property="og:title" content="temphost">
@@ -113,14 +113,120 @@
       padding: 20px;
     }
     footer {
-      padding: 1px;
+      padding: 10px;
       text-align: center;
-      height: 9%;
       background-color: rgba(9, 15, 21, 0.497);
     }
-        @media screen and (max-width: 700px) {
-      .container, .navbar {   
+    
+    /* Mobile-First Responsive Design */
+    @media screen and (max-width: 768px) {
+      html, body {
+        height: auto;
+        min-height: 100vh;
+        overflow: auto;
+      }
+      body {
+        margin: 2px;
+        font-size: 16px;
+      }
+      .navbar {
         flex-direction: column;
+        padding: 0;
+      }
+      .navbar a, p.navtitlee {
+        padding: 12px 15px;
+        font-size: 14px;
+        flex: 1;
+        text-align: center;
+      }
+      .container {
+        flex-direction: column;
+        overflow: visible;
+        background-color: rgba(9, 11, 15, 0.273);
+      }
+      .side, .main {
+        flex: 100%;
+        padding: 15px;
+      }
+      .side {
+        padding-bottom: 10px;
+      }
+      .side h1 {
+        font-size: 20px;
+        margin: 10px 0;
+      }
+      .side p {
+        font-size: 14px;
+        line-height: 1.4;
+      }
+      .main h2 {
+        font-size: 18px;
+        margin-top: 15px;
+        margin-bottom: 10px;
+      }
+      button, input[type="text"], input[type="file"] {
+        font-size: 16px;
+        padding: 12px;
+        margin-top: 8px;
+        min-height: 44px;
+      }
+      input[type="text"], input[type="file"] {
+        padding: 12px;
+      }
+      label {
+        display: block;
+        margin-top: 12px;
+        margin-bottom: 5px;
+        font-size: 14px;
+      }
+      .modal {
+        align-items: flex-start;
+        padding-top: 20px;
+      }
+      .modal-content {
+        width: 90%;
+        max-width: 100%;
+        margin: 20px auto;
+        max-height: 80vh;
+        overflow-y: auto;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+      #response, #downloadResponse {
+        margin-top: 10px;
+        padding: 10px;
+        word-wrap: break-word;
+        font-size: 14px;
+      }
+    }
+    
+    @media screen and (max-width: 480px) {
+      body {
+        font-size: 15px;
+      }
+      .navbar a, p.navtitlee {
+        padding: 10px 10px;
+        font-size: 12px;
+      }
+      .side, .main {
+        padding: 12px;
+      }
+      .side h1 {
+        font-size: 18px;
+      }
+      .side p {
+        font-size: 13px;
+      }
+      .main h2 {
+        font-size: 16px;
+      }
+      button, input[type="text"], input[type="file"] {
+        font-size: 15px;
+        padding: 10px;
+      }
+      .modal-content {
+        padding: 15px;
+        font-size: 13px;
       }
     }
     button {
@@ -131,6 +237,7 @@
         background-color: rgba(171, 227, 255, 0.223);
         cursor: pointer;
     }
+
     button:hover {
         background-color: rgba(171, 227, 255, 0.25);
         transition: 150ms;
