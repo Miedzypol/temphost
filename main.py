@@ -3,14 +3,12 @@ import sqlite3, threading
 import os, time, random, platform, string
 import confidential
 
-appVersion = "1.0.4.1"
+appVersion = "1.0.4.1 (Small Fix)"
 
-# New things in 1.0.4.1
-# that .1 ending cuz there are a lot of things unfinished
-# - Unfinished Server Console
-# - User Banning
-# - Finally you can do other things when server is running
-# - Cleaning database every 480 seconds. Deleted would be missing or expired files and it's entries.
+# New things in 1.0.4.1 (small fix):
+# Separated JS, CSS from HTML oon front;endd
+# Variables were in a bad order, causing the server to not work on every machine
+# cleanup.runPeriodically() was set to 3 seconds, I just forgot to change it back. Now it is 480 seconds
 
 # New features that would be in 1.1:
 # - Finished Server console
@@ -24,13 +22,28 @@ appVersion = "1.0.4.1"
 # - Better and cleaner Front-End
 # - Multiple QoL Features, like automatic key generator for confidential.py
 
+dirChar = '/'
+systemNotSupported = False
+
+
+if platform.system() == "Windows":
+    dirChar = '\\'
+elif platform.system() == "Linux":
+    dirChar = '/'
+else:
+    print('''[WARNING]: SERVER SYSTEM IS NOT SUPPORTED. PLEASE USE WINDOWS OR LINUX.
+          SETTING dirChar TO / (default option. You can change it in code by changing dirChar
+          in DEFAULT VARIABLES section on top of the file)
+
+          !!! THIS WARNING WOULD BE LOGGED !!!''')
+    systemNotSupported = True
+
 ROOTDIR = os.path.join(os.path.dirname(os.path.abspath(__file__)))
 FILE_DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), f'db{dirChar}fileStorage.db')
 BAN_DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), f'db{dirChar}banned.db')
 LOG_DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), f'db{dirChar}logs.db')
 
 # Here are some variables you can change. Alternatively use 'config {command}' in server console. <<< DOESNT WORK CURRENTLY
-dirChar = '/'
 logServerInfo = True
 uploadDirectory = f'{ROOTDIR}{dirChar}uploadedFiles'
 
@@ -75,7 +88,7 @@ class DatabaseCleanup:
                     cursor.execute("DELETE FROM files WHERE fileID=?", (fileID,))
             conn.commit()
             conn.close()
-            print(f"[{time.ctime()}] Database cleanup completed.")
+            saveToLogDB('INFO', 'DATABASE CLEANUP', 'SUCCESS')
 
         except sqlite3.Error as e:
             print(f"SQLite Kaput: {e}")
@@ -126,21 +139,13 @@ def serverStartup():
     if startupResult == 'ERROR WHILE LOGGING':
         print('STARTUP EXIT WITH CODE 1. CHECK saveToLogDB()')
         exit()
+    if systemNotSupported==True:
+            saveToLogDB('STARTUP', 'MACHINE WARNING', 'SYSTEM NOT SUPPORTED')
     saveToLogDB('STARTUP', 'BACKEND SERVER STARTUP', f'STARTED SUCCESSFULLY ON {platform.system()}')
     saveToLogDB('STARTUP', 'MACHINE SPECS', f'CPU: {platform.machine()} OS: {platform.system()} RELEASE: {platform.release()}')
     return 0
 
-if platform.system() == "Windows":
-    dirChar = '\\'
-elif platform.system() == "Linux":
-    dirChar = '/'
-else:
-    print('''[WARNING]: SERVER SYSTEM IS NOT SUPPORTED. PLEASE USE WINDOWS OR LINUX.
-          SETTING dirChar TO / (default option. You can change it in code by changing dirChar
-          in DEFAULT VARIABLES section on top of the file)
 
-          !!! THIS WARNING WOULD BE LOGGED !!!''')
-    saveToLogDB('STARTUP', 'SERVER SYSTEM WARNING', 'SYSTEM NOT SUPPORTED')
 
 
 with dbLock:
@@ -288,7 +293,7 @@ def runServer():
 uploadFolder = os.path.join(ROOTDIR, "uploadedFiles")
 os.makedirs(uploadFolder, exist_ok=True)
 cleanup = DatabaseCleanup(FILE_DB, uploadFolder)
-cleanup.runPeriodically(3)
+cleanup.runPeriodically(480)
 
 serverThread = threading.Thread(target=runServer, daemon=True)
 serverThread.start()
