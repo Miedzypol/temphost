@@ -3,16 +3,14 @@ import sqlite3, threading
 import os, time, random, platform, string
 import confidential
 
-appVersion = "1.0.4.1 (Small Fix)"
+appVersion = "1.0.4.2"
 
-# New things in 1.0.4.1 (small fix):
-# Separated JS, CSS from HTML oon front;endd
-# Variables were in a bad order, causing the server to not work on every machine
-# cleanup.runPeriodically() was set to 3 seconds, I just forgot to change it back. Now it is 480 seconds
+# New things in 1.0.4.2:
+# Server's terminal works now (yaaaaaaay no one cares)
 
 # New features that would be in 1.1:
-# - Finished Server console
-# - Scanning if user was banned
+# - [halfly done in 1.0.4.2]Finished Server console
+# - Scanning if user was banned 
 # - More security measures & overall better database security
 # - Cleaned and optimized code
 # - Server installator for Linux and Windows.
@@ -45,7 +43,8 @@ LOG_DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), f'db{dirChar}l
 
 # Here are some variables you can change. Alternatively use 'config {command}' in server console. <<< DOESNT WORK CURRENTLY
 logServerInfo = True
-uploadDirectory = f'{ROOTDIR}{dirChar}uploadedFiles'
+uploadDirectory = f'{ROOTDIR}{dirChar}uploadedFiles' 
+maxFileSize = 150 * 1024 * 1024 # change this to change upload max size. Default : 150MB
 
 
 
@@ -53,7 +52,6 @@ uploadDirectory = f'{ROOTDIR}{dirChar}uploadedFiles'
 
 
 dbLock = threading.Lock()
-
 class DatabaseCleanup:
     def __init__(self, dbPath, uploadFolder):
         self.dbPath = dbPath
@@ -195,13 +193,7 @@ def download():
     downloadFileID = request.query.get('id')
     downloadFileToken = request.query.get('token')
     if downloadFileID == '/dbTest banMyIP':
-        uploadUserIP = request.environ.get('REMOTE_ADDR')
-        with dbLock:
-            conn = sqlite3.connect(BAN_DB, check_same_thread=False)
-            cursor = conn.cursor()
-            cursor.execute("INSERT INTO banned (userIP, banned) VALUES (?, '1')", (confidential.encrypt(uploadUserIP.encode()),))
-            conn.commit()
-            conn.close()
+         
         return "aight bro ur baned"
     if not downloadFileID or not downloadFileToken:
         saveToLogDB('DOWNLOAD','TRYING TO DOWNLOAD A FILE','ERROR: MISSING FIELDS')
@@ -243,19 +235,18 @@ def upload():
             IPScanResult = confidential.checkUser(foundIP, uploadUserIP)
             if IPScanResult == "User banned":
                 return "bradar ur banned bradar pak ju bradar"
-    except Exception as e:
+    except Exception as e: 
         saveToLogDB('UPLOAD', 'CHECKING BANNED IPS', f'ERROR: {str(e)}')
     
     file = request.files.get('file')
     if not file:
         return "No file uploaded."
 
-    max_size = 150 * 1024 * 1024
     file.file.seek(0, os.SEEK_END)
     file_length = file.file.tell()
     file.file.seek(0)
 
-    if file_length > max_size:
+    if file_length > maxFileSize:
         saveToLogDB('INFO', f'FILE UPLOAD IN SIZE {file_length}B', 'FAILURE; FILE EXCEEDS 150MB')
         return 'File size exceeds 150MB.'
 
@@ -307,10 +298,32 @@ try:
                 print(f'''Available commands (warning - most of them don't work currently):
                       server stop - stops the server
                       config allowLogging [true/false] - turn on server's logging
-                      config logDetailedInfo [true/false] - allow logging more detailed info
+                      config logDetailedInfo [true/false] - allow logging more detailed info < It doesnt work cuz this project isnt big enough
                       user ban [IP] - banns user's IP adress
                       ''')
-            pass
+            elif command == "server stop":
+                print("Stopping server...")
+                isServerRunning = False
+                exit()
+            elif config := command.startswith("config allowLogging "):
+                value = command.split(" ")[2]
+                if value == "true":
+                    logServerInfo = True
+                    print("[COMMAND]: Logging enabled")
+                elif value == "false":
+                    logServerInfo = False 
+                    print('[COMMAND]: Logging disabled')
+                else:
+                    print("Invalid value. Use 'true' or 'false'")
+            elif banCommand := command.startswith("user ban "):
+                value = command.split(" ")[2]
+                with dbLock:
+                    conn = sqlite3.connect(BAN_DB, check_same_thread=False)
+                    cursor = conn.cursor()
+                    cursor.execute("INSERT INTO banned (userIP, banned) VALUES (?, '1')", (confidential.encrypt(value.encode()),))
+                    conn.commit()
+                    conn.close()
+                    print('[COMMAND]: Bro got banned')
         except KeyboardInterrupt:
             print("\nByeeeee!")
             isServerRunning = False
