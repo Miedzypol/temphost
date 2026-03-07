@@ -2,11 +2,18 @@ from bottle import route, run, request, static_file
 import sqlite3, threading
 import os, time, random, platform, string
 import confidential
+from configparser import ConfigParser
+import analyticUtils as au
 
-appVersion = "1.0.4.2"
+config = ConfigParser()
+config.read("config.ini")
+appVersion = "1.0.4.3"
+trashVariable = 'hey im trash'
 
-# New things in 1.0.4.2:
-# Server's terminal works now (yaaaaaaay no one cares)
+# New things in 1.0.4.3:
+# Migrated fileStorage.db from sqlite3 to PostgreSQL
+# Every 1200 seconds it should scan the database looking for files that match NSRL's hash list, banning IP's if it was illegal
+# Added config.ini 
 
 # New features that would be in 1.1:
 # - [halfly done in 1.0.4.2]Finished Server console
@@ -37,11 +44,12 @@ else:
     systemNotSupported = True
 
 ROOTDIR = os.path.join(os.path.dirname(os.path.abspath(__file__)))
-FILE_DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), f'db{dirChar}fileStorage.db')
-BAN_DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), f'db{dirChar}banned.db')
-LOG_DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), f'db{dirChar}logs.db')
+FILE_DB = os.path.join(ROOTDIR, f'db{dirChar}fileStorage.db')
+IP_DB = os.path.join(ROOTDIR, f'db{dirChar}banned.db')
+LOG_DB = os.path.join(ROOTDIR, f'db{dirChar}logs.db')
+ANALYTICS_DB = os.path.join(ROOTDIR, f'db{dirChar}analytics.db')
+os.makedirs(f'{ROOTDIR}{dirChar}db', exist_ok=True)
 
-# Here are some variables you can change. Alternatively use 'config {command}' in server console. <<< DOESNT WORK CURRENTLY
 logServerInfo = True
 uploadDirectory = f'{ROOTDIR}{dirChar}uploadedFiles' 
 maxFileSize = 150 * 1024 * 1024 # change this to change upload max size. Default : 150MB
@@ -116,6 +124,8 @@ def randomStr(nrange, type="letters"):
     return ''.join(random.choice(randomStrChars) for _ in range(nrange))
 
 def saveToLogDB(type, desc, res):
+    if config['server'].getboolean('allowLogging', fallback=True) == False:
+        return 'LOGGING DISABLED'
     try:
         with dbLock:
             conn = sqlite3.connect(LOG_DB, check_same_thread=False, timeout=10)
@@ -132,6 +142,39 @@ def saveToLogDB(type, desc, res):
     except Exception as e:
         return f'ERROR WHILE LOGGING: {str(e)}'
 
+def saveToAnalyticsDB(type, desc, res):
+    try:
+        with dbLock:
+            conn = sqlite3.connect(ANALYTICS_DB, check_same_thread=False, timeout=10)
+            cursor = conn.cursor()
+            if res is None:
+                res = "NOT PROVIDED"
+            cursor.execute(
+                'INSERT INTO analytics (type, date, description, result, machineStats) VALUES (?,?,?,?,?)',
+                (type, time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), desc, res, str(au.getPreparedTable()))
+            )
+            conn.commit()
+            conn.close()
+        return 'LOGGED SUCCESSFULLY'
+    except Exception as e:
+        return f'ERROR WHILE LOGGING: {str(e)}'
+
+def analytics(analType):
+    if config['server'].getboolean('allowAnalytics', fallback=False) == False:
+        return 'LOGGING DISABLED'
+    if analType == 'upload':
+        return saveToAnalyticsDB('UPLOAD', 'UPLOADED FILE', None)
+    elif analType == 'download':
+        return saveToAnalyticsDB('DOWNLOAD', 'DOWNLOADED FILE', None)
+    elif analType == 'auto':
+        return saveToAnalyticsDB('AUTO', 'AUTOLOG', None)
+    return 'SUCCESS'
+def analyticsInterval():
+    while True:
+        analytics('auto')
+        time.sleep(config['server'].getint('autoAnalyticsInterval', fallback=1800))
+        
+
 def serverStartup():
     startupResult = saveToLogDB('STARTUP', 'BACKEND SERVER STARTUP', 'FUNCTION TEST')
     if startupResult == 'ERROR WHILE LOGGING':
@@ -141,7 +184,7 @@ def serverStartup():
             saveToLogDB('STARTUP', 'MACHINE WARNING', 'SYSTEM NOT SUPPORTED')
     saveToLogDB('STARTUP', 'BACKEND SERVER STARTUP', f'STARTED SUCCESSFULLY ON {platform.system()}')
     saveToLogDB('STARTUP', 'MACHINE SPECS', f'CPU: {platform.machine()} OS: {platform.system()} RELEASE: {platform.release()}')
-    return 0
+    return None
 
 
 
@@ -162,12 +205,12 @@ with dbLock:
     conn.commit()
     conn.close()
 
-    conn = sqlite3.connect(BAN_DB, check_same_thread=False)
+    conn = sqlite3.connect(IP_DB, check_same_thread=False)
     cursor = conn.cursor()
     cursor.execute('''
-    CREATE TABLE IF NOT EXISTS banned (
+    CREATE TABLE IF NOT EXISTS ipdb (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        userIP TEXT, banned TEXT
+        userIP TEXT, banned TEXT, canUploadAfter TEXT
     )
     ''')
     conn.close()
@@ -182,11 +225,25 @@ with dbLock:
     ''')
     conn.close()
 
+    conn = sqlite3.connect(ANALYTICS_DB, check_same_thread=False)
+    cursor = conn.cursor()
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS analytics (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        type TEXT, date TEXT, description TEXT, result TEXT, machineStats TEXT
+    )
+    ''')
+    conn.close()
+
 serverStartup()
 
 @route("/")
 def index():
-    return static_file(f'html{dirChar}index.html', root='.')
+    return static_file(f'html{dirChar}index.html', root='.')\
+
+@route('/static/<filepath:path>')
+def serve_static(filepath):
+    return static_file(filepath, root=os.path.join(ROOTDIR, 'html'))
 
 @route('/download')
 def download():
@@ -224,7 +281,7 @@ def upload():
 
     uploadUserIP = request.environ.get('REMOTE_ADDR')
     try:
-        banConn = sqlite3.connect('db/banned.db')
+        banConn = sqlite3.connect(IP_DB)
         banCursor = banConn.cursor()
         banCursor.execute("SELECT userIP FROM banned WHERE banned = '1'")
         bannedIPs = banCursor.fetchall()
@@ -265,7 +322,7 @@ def upload():
         cursor = conn.cursor()
         cursor.execute(
             'INSERT INTO files (fileName, fileID, accessToken, expireTime, verified) VALUES (?,?,?,?,?)',
-            (newFilename, dbFileID, dbFileToken, time.time() + 86400, False)
+            (newFilename, dbFileID, dbFileToken, time.time() + config['user'].getint('deleteFilesAfter', fallback=86400), False)
         )
         conn.commit()
         conn.close()
@@ -277,18 +334,23 @@ isServerRunning = True
 
 def runServer():
     try:
-        run(host='0.0.0.0', port=3138, quiet=True)
+        run(
+            host=config['server'].get('host', fallback='0.0.0.0'),port=config['server'].getint('port', fallback=3138))
     except KeyboardInterrupt:
         pass
 
 uploadFolder = os.path.join(ROOTDIR, "uploadedFiles")
 os.makedirs(uploadFolder, exist_ok=True)
 cleanup = DatabaseCleanup(FILE_DB, uploadFolder)
-cleanup.runPeriodically(480)
+cleanup.runPeriodically(config['server'].getint('databaseScanDelay', fallback=480))
 
-serverThread = threading.Thread(target=runServer, daemon=True)
+serverThread = threading.Thread(target=runServer, daemon=True) # runServer thread
 serverThread.start()
-print("Server started on http://localhost:3138")
+
+analyticsThread = threading.Thread(target=analyticsInterval, daemon=True) # Auto analytics thread
+analyticsThread.start()
+
+print(f"Server started on http://{config['server'].get('host', fallback='0.0.0.0')}:{config['server'].get('port', fallback=3138)}")
 print(f'NanoCloud Initiative | TempHost v{appVersion} is running. Use "help" for command\'s list\n')
 try:
     while isServerRunning:
@@ -298,7 +360,7 @@ try:
                 print(f'''Available commands (warning - most of them don't work currently):
                       server stop - stops the server
                       config allowLogging [true/false] - turn on server's logging
-                      config logDetailedInfo [true/false] - allow logging more detailed info < It doesnt work cuz this project isnt big enough
+                      config analytics [true/false] - allow logging more detailed info < It doesnt work cuz this project isnt big enough
                       user ban [IP] - banns user's IP adress
                       ''')
             elif command == "server stop":
@@ -318,12 +380,14 @@ try:
             elif banCommand := command.startswith("user ban "):
                 value = command.split(" ")[2]
                 with dbLock:
-                    conn = sqlite3.connect(BAN_DB, check_same_thread=False)
+                    conn = sqlite3.connect(IP_DB, check_same_thread=False)
                     cursor = conn.cursor()
                     cursor.execute("INSERT INTO banned (userIP, banned) VALUES (?, '1')", (confidential.encrypt(value.encode()),))
                     conn.commit()
                     conn.close()
                     print('[COMMAND]: Bro got banned')
+            elif command == "config analytics":
+                print("Analytics configuration is not implemented.")
         except KeyboardInterrupt:
             print("\nByeeeee!")
             isServerRunning = False
