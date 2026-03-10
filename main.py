@@ -7,10 +7,10 @@ import analyticUtils as au
 
 config = ConfigParser()
 config.read("config.ini")
-appVersion = "1.0.4.3"
+appVersion = "1.0.4.4"
 trashVariable = 'hey im trash'
 
-# New things in 1.0.4.3:
+# New things in 1.0.4.4:
 # Migrated fileStorage.db from sqlite3 to PostgreSQL
 # Every 1200 seconds it should scan the database looking for files that match NSRL's hash list, banning IP's if it was illegal
 # Added config.ini 
@@ -344,10 +344,10 @@ os.makedirs(uploadFolder, exist_ok=True)
 cleanup = DatabaseCleanup(FILE_DB, uploadFolder)
 cleanup.runPeriodically(config['server'].getint('databaseScanDelay', fallback=480))
 
-serverThread = threading.Thread(target=runServer, daemon=True) # runServer thread
+serverThread = threading.Thread(target=runServer, daemon=True)
 serverThread.start()
 
-analyticsThread = threading.Thread(target=analyticsInterval, daemon=True) # Auto analytics thread
+analyticsThread = threading.Thread(target=analyticsInterval, daemon=True)
 analyticsThread.start()
 
 print(f"Server started on http://{config['server'].get('host', fallback='0.0.0.0')}:{config['server'].get('port', fallback=3138)}")
