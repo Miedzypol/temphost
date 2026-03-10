@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -15,58 +16,105 @@
     <meta name="twitter:image" content="https://i.ibb.co/sJHW5mzc/sdsadsadsad.png">
     <link rel="icon" type="image/x-icon" href="/static/favicon-32x32.png">
     <link rel="stylesheet" href="/static/style.css">
+    <style>
+        button {
+            transition: background-color 0.3s ease;
+            background: #77d8a5;
+            color: azure;
+        }
+
+        button:hover {
+            transition: background-color 0.3s ease;
+            background: #65c994;
+            color: azure;
+        }
+
+        button:active {
+            transition: background-color 0.3s ease;
+            background: #54b888;
+            color: azure;
+        }
+
+        input {
+            color: #000;
+        }
+    </style>
     <title>temphost</title>
 </head>
+
 <body>
+    <div class="background">
+        <div class="navbar">
+            <p class="navtitlee">NanoCloud.pl</p>
+            <nav>
+                <a href="#">Home</a>
+                <a href="#">Projects</a>
+                <a href="#">Github</a>
+                <a href="#">Contact</a>
+            </nav>
+        </div>
 
-<div class="navbar">
-    <p class="navtitlee">NanoCloud.pl</p>
-  <a href="#">Home</a>
-  <a href="#">Projects</a>
-  <a href="#">Contact</a>
-  <a href="#">Github</a>
-</div>
+        <div class="container">
+            <div class="header-section">
+                <h1>temphost</h1>
+                <p>Upload your files for a day. Important - losing token means losing the file.
+                    The file stays about a day on our servers. Then, it's deleted.<br><br>
+                    By clicking "Upload" you agree with our <a href="#" id="tosLink">Terms of Service</a> and <a
+                        href="#" id="privacyLink">Privacy Policy</a>.</p>
+                <noscript>Your browser is probably outdated. Please use browser that supports JavaScript.</noscript>
+            </div>
+            <div class="main">
+                <div class="upload-grid">
+                    <div class="placeholder-box" id="qrCodeContainer">
+                    </div>
+                    <div class="drop-zone" id="dropZone">
+                        <div class="arrow">↑</div>
+                        <p>Drag your file here, or click to choose it</p>
+                        <input type="file" id="fileInput" name="file" required>
+                    </div>
+                </div>
 
-<div class="container">
-  <div class="side">
-    <h1>temphost</h1>
-    <p>Upload your files for a day. Important - loosing token means loosing the file.
-        The file stays about a day on our servers. Then, it's deleted.<br><br>
-        By clicking "Upload" you agree with our <a href="#" id="tosLink">Terms of Service</a> and <a href="#" id="privacyLink">Privacy Policy</a>.
-   <noscript>Your browser is probably outdated. Please use browser that supports JavaScript.</noscript>
-      </p>
-  </div>
-  <div class="main">
-    <h2>Upload</h2>
-    <form id="uploadForm" enctype="multipart/form-data">
-        <input type="file" id="fileInput" name="file" required>
-        <button type="submit">Upload</button>
-    </form>
-    <div id="response"></div>
+                <div class="action-row">
+                    <button type="submit" id="submitBtn">Submit →</button>
+                    <div>
+                        <div id="progressContainer" class="progress-container" style="display: none;">
+                            <progress id="uploadProgress" value="0" max="100"></progress>
+                            <span id="progressText">0%</span>
+                        </div>
+                        <div id="response"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="downloadSection">
+                <div class="input-group">
+                    <label for="downloadId">ID:</label>
+                    <input type="text" id="downloadId" placeholder="Enter file ID">
+                </div>
+                <div class="input-group">
+                    <label for="downloadToken">Token:</label>
+                    <input type="text" id="downloadToken" placeholder="Enter access token">
+                </div>
+                <div class="download-action-row">
+                    <button id="downloadBtn">↓ Download</button>
+                    <div id="downloadResponse"></div>
+                </div>
+            </div>
+        </div>
 
-    <h2>Download</h2>
-    <div id="downloadSection">
-        <label for="downloadId">ID:</label>
-        <input type="text" id="downloadId">
-        <label for="downloadToken">Token:</label>
-        <input type="text" id="downloadToken">
-        <button id="downloadBtn">Download</button>
+        <footer>
+            <p>TempHost belongs to NanoCloud Initiative.</p>
+        </footer>
+
+        <div id="modal" class="modal">
+            <div class="modal-content">
+                <span id="modalClose" class="modal-close">&times;</span>
+                <p id="modalText"></p>
+            </div>
+        </div>
     </div>
-    <div id="downloadResponse"></div>
-  </div>
-</div>
+    <script src="https://unpkg.com/qr-code-styling@1.5.0/lib/qr-code-styling.js"></script>
+    <script src="/static/script.js"></script>
 
-<footer>
-  <p>TempHost belongs to NanoCloud Initiative.</p>
-</footer>
-    <div id="modal" class="modal">
-      <div class="modal-content">
-        <span id="modalClose" class="modal-close">&times;</span>
-        <p id="modalText"></p>
-      </div>
-    </div>
-    
-    <script src="static/script.js"></script>
 </body>
-</html>
 
+</html>

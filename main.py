@@ -1,4 +1,4 @@
-from bottle import route, run, request, static_file
+from bottle import route, run, request, static_file, response
 import sqlite3, threading
 import os, time, random, platform, string
 import confidential
@@ -31,6 +31,7 @@ dirChar = '/'
 systemNotSupported = False
 
 
+response.add_header('ngrok-skip-browser-warning', 'true')
 if platform.system() == "Windows":
     dirChar = '\\'
 elif platform.system() == "Linux":
@@ -243,38 +244,80 @@ def index():
 
 @route('/static/<filepath:path>')
 def serve_static(filepath):
+    candidate = os.path.join(ROOTDIR, 'html', filepath)
+    if os.path.isfile(candidate):
+        return static_file(filepath, root=os.path.join(ROOTDIR, 'html'))
+    candidate = os.path.join(ROOTDIR, 'html', 'static', filepath)
+    if os.path.isfile(candidate):
+        return static_file(filepath, root=os.path.join(ROOTDIR, 'html', 'static'))
+
     return static_file(filepath, root=os.path.join(ROOTDIR, 'html'))
 
 @route('/download')
 def download():
     downloadFileID = request.query.get('id')
     downloadFileToken = request.query.get('token')
-    if downloadFileID == '/dbTest banMyIP':
-         
-        return "aight bro ur baned"
+
+    print(f"Download request: ID={downloadFileID}, Token={downloadFileToken}")
+    saveToLogDB('DOWNLOAD', 'DOWNLOAD REQUEST', f'ID: {downloadFileID}, TOKEN: {downloadFileToken}')
+
     if not downloadFileID or not downloadFileToken:
-        saveToLogDB('DOWNLOAD','TRYING TO DOWNLOAD A FILE','ERROR: MISSING FIELDS')
-        return 'downloadFileID or downloadFileToken is blank'
+        saveToLogDB('DOWNLOAD', 'MISSING FIELDS', 'ERROR: ID or TOKEN blank')
+        return 'ERROR: File ID or token is blank.'
     conn = sqlite3.connect(FILE_DB, check_same_thread=False)
     cursor = conn.cursor()
-    cursor.execute("SELECT accessToken, fileName FROM files WHERE fileID = ?", (int(downloadFileID),))
+    cursor.execute(
+        "SELECT accessToken, fileName, expireTime FROM files WHERE fileID = ?",
+        (int(downloadFileID),)
+    )
     downloadDBSearchResult = cursor.fetchone()
     conn.close()
-    print(downloadDBSearchResult)
-    if downloadDBSearchResult:
-        if downloadFileToken==downloadDBSearchResult[0]:
-            saveToLogDB('DOWNLOAD','TOKEN MATCHES DB RECORD CONDITION', f'SUCCESS {downloadDBSearchResult[1]}')
-            return static_file(
-                downloadDBSearchResult[1],
-                root=f'{ROOTDIR}{dirChar}uploadedFiles{dirChar}',
-                download=downloadDBSearchResult[1]
+
+    if not downloadDBSearchResult:
+        saveToLogDB('DOWNLOAD', 'FILE NOT FOUND', f'ERROR: No record for ID {downloadFileID}')
+        return 'ERROR: File not found in database.'
+
+    dbToken, fileName, expireTime = downloadDBSearchResult
+
+    if downloadFileToken != dbToken:
+        saveToLogDB('DOWNLOAD', 'TOKEN MISMATCH', f'ERROR: Token mismatch for ID {downloadFileID}')
+        return 'ERROR: Token does not match.'
+    if float(expireTime) < time.time():
+        saveToLogDB('DOWNLOAD', 'FILE EXPIRED', f'ERROR: File expired for ID {downloadFileID}')
+        return 'ERROR: File has expired.'
+
+    filePath = os.path.join(uploadDirectory, fileName)
+    print(f"File path: {filePath}")
+
+    if not os.path.exists(filePath):
+        saveToLogDB('DOWNLOAD', 'FILE MISSING', f'ERROR: File not found at {filePath}')
+        return 'ERROR: File not found on server.'
+
+    try:
+        return static_file(
+            fileName,
+            root=uploadDirectory,
+            download=fileName
+        )
+    except Exception as e:
+        saveToLogDB('DOWNLOAD', 'STATIC_FILE ERROR', f'ERROR: {str(e)}')
+        print(f"static_file failed: {e}")
+
+    try:
+        with open(filePath, 'rb') as f:
+            response = bottle.HTTPResponse(
+                body=f.read(),
+                status=200,
+                headers={
+                    'Content-Type': 'application/octet-stream',
+                    'Content-Disposition': f'attachment; filename="{fileName}"'
+                }
             )
-        else:
-            saveToLogDB('DOWNLOAD','TOKEN MATCHES DB RECORD CONDITION', f'FAILURE {downloadDBSearchResult[1]}')
-            return 'TOKEN DOES NOT MATCH DB RECORD'
-    else:
-        saveToLogDB('DOWNLOAD','TRYING TO DOWNLOAD A FILE', 'ERROR: FILE NOT FOUND')
-        return 'FILE NOT FOUND ERROR'
+            saveToLogDB('DOWNLOAD', 'MANUAL SERVE', f'SUCCESS: Served {fileName} manually')
+            return response
+    except Exception as e:
+        saveToLogDB('DOWNLOAD', 'MANUAL SERVE ERROR', f'ERROR: {str(e)}')
+        return f'ERROR: Failed to serve file: {str(e)}'
 
 @route('/upload', method='POST')
 def upload():
@@ -359,22 +402,55 @@ try:
             if command == "help":
                 print(f'''Available commands (warning - most of them don't work currently):
                       server stop - stops the server
+                      config autoAnalyticsInterval [seconds] - set interval for auto analytics logging (default 1800 seconds)
                       config allowLogging [true/false] - turn on server's logging
-                      config analytics [true/false] - allow logging more detailed info < It doesnt work cuz this project isnt big enough
+                      config analytics [true/false] - allow logging more detailed info
+                      config databaseScanDelay [seconds] - DB scan interval (480 seconds - default)
+                      config encryptWithFernet [true/false] - encrypt files in database with fernet (doesnt work yet)
+                      config encryptWithHash [true/false] - encrypt files in database with hash 'n salt
+
                       user ban [IP] - banns user's IP adress
                       ''')
             elif command == "server stop":
                 print("Stopping server...")
                 isServerRunning = False
                 exit()
+            elif config := command.startswith("config autoAnalyticsInterval "):
+                value = command.split(" ")[2]
+                if value.isdigit():
+                    config['server']['autoAnalyticsInterval'] = value
+                    print(f'[COMMAND]: Auto analytics interval set to {value} seconds')
+                else:
+                    print("Invalid value. Please enter a number.")
+            elif config := command.startswith("config databaseScanDelay "):
+                value = command.split(" ")[2]
+                if value.isdigit():
+                    config['server']['databaseScanDelay'] = value
+                    print(f'[COMMAND]: Database scan delay set to {value} seconds')
+                else:
+                    print("Invalid value. Please enter a number.")
+            elif config := command.startswith("config encryptWithFernet "):
+                value = command.split(" ")[2]
+                if value == "true":
+                    print('Alert: Fernet encryption does not work.')
+                elif value == "false":
+                    print("Alert: Fernet encryption does not work.")
+                else:
+                    print("Invalid value. Use 'true' or 'false'")
+            elif config := command.startswith("config encryptWithHash "):
+                value = command.split(" ")[2]
+                if value == "true":
+                    config['confidential']['encryptWithHash'] = True
+                elif value == "false":
+                    config['confidential']['encryptWithHash'] = False
+                else:
+                    print("Invalid value. Use 'true' or 'false'")
             elif config := command.startswith("config allowLogging "):
                 value = command.split(" ")[2]
                 if value == "true":
-                    logServerInfo = True
-                    print("[COMMAND]: Logging enabled")
+                    config['server']['allowLogging'] = True
                 elif value == "false":
-                    logServerInfo = False 
-                    print('[COMMAND]: Logging disabled')
+                    config['server']['allowLogging'] = False
                 else:
                     print("Invalid value. Use 'true' or 'false'")
             elif banCommand := command.startswith("user ban "):
